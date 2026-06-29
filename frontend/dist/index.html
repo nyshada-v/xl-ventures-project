@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Agentic AI Platform</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f8fafc; color:#1e293b; margin:0; }
+
+.sidebar { width:220px; min-height:100vh; background:#fff; border-right:1px solid #e2e8f0; position:fixed; top:0; left:0; z-index:10; }
+.main-content { margin-left:220px; }
+.topbar { height:56px; background:#fff; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; padding:0 24px; justify-content:space-between; position:sticky; top:0; z-index:5; }
+
+.nav-item { display:flex; align-items:center; gap:10px; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:14px; color:#64748b; margin:2px 8px; transition:all .15s; }
+.nav-item:hover { background:#f1f5f9; color:#1e293b; }
+.nav-item.active { background:#eff2ff; color:#4f46e5; font-weight:500; }
+.nav-icon { width:18px; text-align:center; }
+
+.card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; }
+.stat-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; }
+.stat-num { font-size:28px; font-weight:700; color:#1e293b; }
+.stat-lbl { font-size:12px; color:#94a3b8; margin-top:2px; }
+
+/* Pipeline animation */
+.pipeline-wrap { display:flex; align-items:center; gap:0; overflow-x:auto; padding:8px 0; }
+.p-node { display:flex; flex-direction:column; align-items:center; position:relative; }
+.p-node-circle {
+  width:48px; height:48px; border-radius:50%;
+  border:2px solid #e2e8f0; background:#f8fafc;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; z-index:1;
+  transition:all .4s ease;
+}
+.p-node-circle.active {
+  border-color:#4f46e5; background:#eff2ff;
+  box-shadow:0 0 0 6px rgba(79,70,229,.12);
+  animation:pulse-ring 1.2s infinite;
+}
+.p-node-circle.done { border-color:#10b981; background:#ecfdf5; }
+.p-node-circle.done::after {
+  content:'✓'; position:absolute; bottom:-2px; right:-2px;
+  width:16px; height:16px; background:#10b981; border-radius:50%;
+  font-size:9px; color:#fff; display:flex; align-items:center; justify-content:center;
+  line-height:16px; text-align:center;
+}
+.p-node-label { font-size:10px; color:#94a3b8; margin-top:6px; text-align:center; white-space:nowrap; max-width:72px; }
+.p-node-label.done { color:#10b981; }
+.p-node-label.active { color:#4f46e5; font-weight:600; }
+.p-connector { width:32px; height:2px; background:#e2e8f0; flex-shrink:0; margin-bottom:22px; transition:background .4s; }
+.p-connector.done { background:#10b981; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow:0 0 0 0 rgba(79,70,229,.3); }
+  70%  { box-shadow:0 0 0 10px rgba(79,70,229,0); }
+  100% { box-shadow:0 0 0 0 rgba(79,70,229,0); }
+}
+
+/* Score bar */
+.score-bar { height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
+.score-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#4f46e5,#06b6d4); transition:width .6s ease; }
+
+/* Badges */
+.badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:500; }
+.badge-green  { background:#ecfdf5; color:#059669; }
+.badge-blue   { background:#eff6ff; color:#2563eb; }
+.badge-purple { background:#f5f3ff; color:#7c3aed; }
+.badge-amber  { background:#fffbeb; color:#d97706; }
+.badge-red    { background:#fef2f2; color:#dc2626; }
+.badge-gray   { background:#f1f5f9; color:#64748b; }
+.badge-indigo { background:#eff2ff; color:#4f46e5; }
+
+/* HITL cards */
+.hitl-card { border:2px solid #e2e8f0; border-radius:10px; background:#fff; transition:all .2s; }
+.hitl-card.approved { border-color:#10b981; background:#f0fdf4; }
+.hitl-card.rejected { border-color:#ef4444; background:#fef2f2; opacity:.7; }
+
+/* Buttons */
+.btn-primary { background:#4f46e5; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s; }
+.btn-primary:hover { background:#4338ca; }
+.btn-secondary { background:#f1f5f9; color:#1e293b; border:1px solid #e2e8f0; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:all .15s; }
+.btn-secondary:hover { background:#e2e8f0; }
+.btn-success { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:6px 14px; border-radius:7px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+.btn-success:hover { background:#d1fae5; }
+.btn-danger  { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:6px 14px; border-radius:7px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+.btn-danger:hover { background:#fee2e2; }
+
+/* Activity feed */
+.feed-item { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; }
+.feed-dot { width:8px; height:8px; border-radius:50%; background:#4f46e5; margin-top:5px; flex-shrink:0; }
+.feed-dot.done { background:#10b981; }
+.feed-dot.error { background:#ef4444; }
+
+/* Contact chip */
+.contact-chip { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; }
+
+/* Input */
+input[type=text], input[type=number] {
+  width:100%; background:#f8fafc; border:1px solid #e2e8f0;
+  border-radius:8px; padding:8px 12px; font-size:13px;
+  outline:none; transition:border .15s; color:#1e293b;
+}
+input:focus { border-color:#4f46e5; background:#fff; }
+input[type=range] { accent-color:#4f46e5; width:100%; }
+
+/* Domain switcher */
+.domain-card { border:2px solid #e2e8f0; border-radius:10px; padding:14px; cursor:pointer; transition:all .2s; background:#fff; }
+.domain-card:hover { border-color:#a5b4fc; background:#fafbff; }
+.domain-card.active { border-color:#4f46e5; background:#eff2ff; }
+
+/* Lead card */
+.lead-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.lead-card-header { background:linear-gradient(135deg,#4f46e5 0%,#06b6d4 100%); padding:16px 20px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+
+/* Toast */
+.toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:#fff; padding:12px 20px; border-radius:10px; font-size:13px; z-index:100; opacity:0; transition:opacity .3s; pointer-events:none; }
+.toast.show { opacity:1; }
+
+/* Mock badge */
+.mock-pill { background:#fffbeb; color:#d97706; border:1px solid #fde68a; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar flex flex-col">
+  <div class="px-5 py-4 border-b border-slate-100">
+    <div class="flex items-center gap-2.5">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#06b6d4);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">A</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#1e293b;">AgentIQ</div>
+        <div style="font-size:10px;color:#94a3b8;">Prospect Intelligence</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 py-3">
+    <div class="px-4 py-2" style="font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.08em;">PLATFORM</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" id="nav-runs" onclick="showPage('runs')">
+      <span class="nav-icon">▶</span> Runs
+    </div>
+    <div class="nav-item" id="nav-leads" onclick="showPage('leads')">
+      <span class="nav-icon">🎯</span> Saved Leads
+    </div>
+    <div class="px-4 py-2 mt-2" style="font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.08em;">SETTINGS</div>
+    <div class="nav-item" id="nav-config" onclick="showPage('config')">
+      <span class="nav-icon">⚙</span> ICP Config
+    </div>
+    <div class="nav-item" id="nav-agents" onclick="showPage('agents')">
+      <span class="nav-icon">🤖</span> Agent Registry
+    </div>
+    <div class="nav-item" id="nav-arch" onclick="showPage('arch')">
+      <span class="nav-icon">🏗</span> Architecture
+    </div>
+  </nav>
+
+  <div class="px-4 py-4 border-t border-slate-100">
+    <div id="domain-pill" style="font-size:11px;background:#eff2ff;color:#4f46e5;padding:4px 10px;border-radius:20px;text-align:center;font-weight:500;">HR / Payroll SaaS</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main-content">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div style="font-size:15px;font-weight:600;color:#1e293b;" id="page-title">Dashboard</div>
+    <div class="flex items-center gap-3">
+      <span class="mock-pill" id="mock-indicator">⚡ MOCK MODE</span>
+      <button class="btn-secondary" onclick="showPage('config')">⚙ Configure</button>
+      <button class="btn-primary" onclick="startRun()" id="run-btn">▶ Run Discovery</button>
+    </div>
+  </div>
+
+  <!-- Pages -->
+  <div style="padding:24px;">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard">
+      <!-- Stats row -->
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="stat-card">
+          <div style="font-size:22px;margin-bottom:4px;">🚀</div>
+          <div class="stat-num" id="s-runs">—</div>
+          <div class="stat-lbl">Total Runs</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:22px;margin-bottom:4px;">🎯</div>
+          <div class="stat-num" id="s-leads">—</div>
+          <div class="stat-lbl">Qualified Leads</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:22px;margin-bottom:4px;">👤</div>
+          <div class="stat-num" id="s-contacts">—</div>
+          <div class="stat-lbl">Enriched Contacts</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:22px;margin-bottom:4px;">📈</div>
+          <div class="stat-num" id="s-score">—</div>
+          <div class="stat-lbl">Avg ICP Score</div>
+        </div>
+      </div>
+
+      <!-- Domain switcher -->
+      <div class="card p-5 mb-6">
+        <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:12px;letter-spacing:.06em;">BUSINESS DOMAIN</div>
+        <div class="grid grid-cols-3 gap-3" id="domain-cards"></div>
+      </div>
+
+      <!-- Quick run + recent -->
+      <div class="grid grid-cols-2 gap-6">
+        <div class="card p-5">
+          <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:16px;letter-spacing:.06em;">START DISCOVERY</div>
+          <div style="text-align:center;padding:20px 0;">
+            <div style="font-size:48px;margin-bottom:12px;">🔍</div>
+            <div style="font-size:14px;color:#64748b;margin-bottom:20px;">Run the full 6-agent pipeline to discover and qualify B2B prospects matching your ICP.</div>
+            <button class="btn-primary" style="width:100%;padding:12px;" onclick="startRunAndNavigate()">▶ Start Agent Pipeline</button>
+          </div>
+        </div>
+        <div class="card p-5">
+          <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:12px;letter-spacing:.06em;">RECENT RUNS</div>
+          <div id="dash-recent-runs" style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RUNS PAGE -->
+    <div id="page-runs" class="hidden">
+      <div class="grid gap-6" style="grid-template-columns:280px 1fr;">
+
+        <!-- Run list -->
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:10px;letter-spacing:.06em;">RUN HISTORY</div>
+          <div id="run-list" class="space-y-2"></div>
+        </div>
+
+        <!-- Run detail -->
+        <div id="run-detail">
+          <div class="card p-12 text-center">
+            <div style="font-size:48px;margin-bottom:12px;">🤖</div>
+            <div style="color:#94a3b8;font-size:14px;">Click "Run Discovery" to start the agent pipeline,<br/>or select a run from the history.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LEADS PAGE -->
+    <div id="page-leads" class="hidden">
+      <div class="flex justify-between items-center mb-5">
+        <div style="font-size:12px;font-weight:600;color:#64748b;letter-spacing:.06em;">SAVED LEADS</div>
+        <div class="flex gap-2">
+          <button class="btn-secondary" onclick="loadLeads()">↻ Refresh</button>
+          <a href="/api/config/export/csv" class="btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">⬇ Export CSV</a>
+        </div>
+      </div>
+      <div id="leads-list"></div>
+    </div>
+
+    <!-- CONFIG PAGE -->
+    <div id="page-config" class="hidden">
+      <div style="max-width:640px;">
+        <div class="card p-6">
+          <div style="font-size:15px;font-weight:600;margin-bottom:20px;">ICP Configuration</div>
+          <div class="space-y-4">
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Industries (comma separated)</label>
+              <input type="text" id="cfg-industries"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Min Headcount</label>
+                <input type="number" id="cfg-min-hc"/>
+              </div>
+              <div>
+                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Max Headcount</label>
+                <input type="number" id="cfg-max-hc"/>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Funding Stages (comma separated)</label>
+              <input type="text" id="cfg-stages"/>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">
+                ICP Score Threshold: <strong id="threshold-label">0.6</strong>
+              </label>
+              <input type="range" min="0" max="1" step="0.05" id="cfg-threshold"
+                oninput="document.getElementById('threshold-label').textContent=this.value"/>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Tech Stack Signals (comma separated)</label>
+              <input type="text" id="cfg-stack"/>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Trigger Keywords (comma separated)</label>
+              <input type="text" id="cfg-keywords"/>
+            </div>
+            <button class="btn-primary" style="width:100%;padding:10px;" onclick="saveConfig()">Save Configuration</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT REGISTRY PAGE -->
+    <div id="page-agents" class="hidden">
+      <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:16px;letter-spacing:.06em;">REGISTERED AGENTS</div>
+      <div id="agent-registry-list" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- ARCHITECTURE PAGE -->
+    <div id="page-arch" class="hidden">
+      <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:16px;letter-spacing:.06em;">PLATFORM ARCHITECTURE</div>
+      <div class="card p-6">
+        <div style="font-size:14px;font-weight:600;margin-bottom:20px;">Agentic AI Platform — System Design</div>
+
+        <!-- Layer labels + boxes -->
+        <div class="space-y-4">
+          <!-- UI Layer -->
+          <div style="border:1px dashed #c7d2fe;border-radius:10px;padding:12px 16px;background:#fafbff;">
+            <div style="font-size:10px;font-weight:700;color:#6366f1;margin-bottom:8px;letter-spacing:.08em;">UI LAYER</div>
+            <div class="flex gap-2 flex-wrap">
+              <span class="badge badge-indigo">React Dashboard</span>
+              <span class="badge badge-indigo">ICP Configurator</span>
+              <span class="badge badge-indigo">HITL Approval Panel</span>
+              <span class="badge badge-indigo">Live Activity Feed (SSE)</span>
+              <span class="badge badge-indigo">Domain Switcher</span>
+            </div>
+          </div>
+
+          <div style="text-align:center;color:#94a3b8;font-size:18px;">↕</div>
+
+          <!-- Planner -->
+          <div style="border:1px dashed #a7f3d0;border-radius:10px;padding:12px 16px;background:#f0fdf4;">
+            <div style="font-size:10px;font-weight:700;color:#059669;margin-bottom:8px;letter-spacing:.08em;">PLANNER AGENT (LangGraph)</div>
+            <span class="badge badge-green">Dynamic DAG Orchestration · HITL Checkpoint · Conditional Routing · Resume on Approval</span>
+          </div>
+
+          <div style="text-align:center;color:#94a3b8;font-size:18px;">↕</div>
+
+          <!-- Agents -->
+          <div style="border:1px dashed #fde68a;border-radius:10px;padding:12px 16px;background:#fffbeb;">
+            <div style="font-size:10px;font-weight:700;color:#d97706;margin-bottom:8px;letter-spacing:.08em;">SPECIALIZED AGENTS (Plugin Registry)</div>
+            <div class="flex gap-2 flex-wrap">
+              <span class="badge badge-amber">📡 Trigger Monitor</span>
+              <span class="badge badge-amber">🎯 ICP Matcher</span>
+              <span class="badge badge-amber">🔍 Enrichment</span>
+              <span class="badge badge-amber">👤 Persona Finder</span>
+              <span class="badge badge-amber">📧 Contact Enrichment</span>
+              <span class="badge badge-amber">📝 Summary</span>
+            </div>
+          </div>
+
+          <div style="text-align:center;color:#94a3b8;font-size:18px;">↕</div>
+
+          <!-- Tools -->
+          <div style="border:1px dashed #bfdbfe;border-radius:10px;padding:12px 16px;background:#eff6ff;">
+            <div style="font-size:10px;font-weight:700;color:#2563eb;margin-bottom:8px;letter-spacing:.08em;">TOOL LAYER (Mock / Real toggle via .env)</div>
+            <div class="flex gap-2 flex-wrap">
+              <span class="badge badge-blue">Serper Web Search</span>
+              <span class="badge badge-blue">Apollo Company Data</span>
+              <span class="badge badge-blue">Hunter.io Contacts</span>
+              <span class="badge badge-blue">Proxycurl LinkedIn</span>
+              <span class="badge badge-blue">ICP Scoring Engine</span>
+            </div>
+          </div>
+
+          <div style="text-align:center;color:#94a3b8;font-size:18px;">↕</div>
+
+          <!-- Memory -->
+          <div style="border:1px dashed #e9d5ff;border-radius:10px;padding:12px 16px;background:#faf5ff;">
+            <div style="font-size:10px;font-weight:700;color:#7c3aed;margin-bottom:8px;letter-spacing:.08em;">MEMORY & STORAGE</div>
+            <div class="flex gap-2 flex-wrap">
+              <span class="badge badge-purple">SQLite / PostgreSQL (leads, contacts, runs)</span>
+              <span class="badge badge-purple">ChromaDB Vector Store (dedup)</span>
+              <span class="badge badge-purple">Redis / In-Memory (working state)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key decisions -->
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid #f1f5f9;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Key Design Decisions</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div style="background:#f8fafc;border-radius:8px;padding:12px;">
+              <div style="font-size:12px;font-weight:600;color:#4f46e5;margin-bottom:4px;">Plugin Registry Pattern</div>
+              <div style="font-size:12px;color:#64748b;">New agents self-register with @register decorator. Zero changes to planner or core code required.</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:8px;padding:12px;">
+              <div style="font-size:12px;font-weight:600;color:#059669;margin-bottom:4px;">Mock/Real Toggle</div>
+              <div style="font-size:12px;color:#64748b;">Every tool falls back to realistic mock data when API keys are absent. One .env change switches to production.</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:8px;padding:12px;">
+              <div style="font-size:12px;font-weight:600;color:#d97706;margin-bottom:4px;">HITL Suspension</div>
+              <div style="font-size:12px;color:#64748b;">Pipeline pauses after contact enrichment. State persisted. Resumes only on explicit human approval via API.</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:8px;padding:12px;">
+              <div style="font-size:12px;font-weight:600;color:#7c3aed;margin-bottom:4px;">SSE Streaming</div>
+              <div style="font-size:12px;color:#64748b;">Real-time agent progress pushed to UI via Server-Sent Events. No polling. No websocket complexity.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentRunId   = null;
+let eventSource    = null;
+let agentSteps     = [];
+let hitlData       = null;
+let hitlDecisions  = {};
+let activeDomain   = "hr_saas";
+
+const AGENTS = [
+  { key:"trigger_monitor",    label:"Trigger Monitor",    icon:"📡" },
+  { key:"icp_matcher",        label:"ICP Matcher",        icon:"🎯" },
+  { key:"enrichment",         label:"Enrichment",         icon:"🔍" },
+  { key:"persona",            label:"Persona Finder",     icon:"👤" },
+  { key:"contact_enrichment", label:"Contact Enrich",     icon:"📧" },
+];
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+const PAGES = ["dashboard","runs","leads","config","agents","arch"];
+function showPage(name) {
+  PAGES.forEach(p => {
+    document.getElementById(`page-${p}`).classList.toggle("hidden", p !== name);
+    document.getElementById(`nav-${p}`)?.classList.toggle("active", p === name);
+  });
+  const titles = {
+    dashboard:"Dashboard", runs:"Runs", leads:"Saved Leads",
+    config:"ICP Config", agents:"Agent Registry", arch:"Architecture",
+  };
+  document.getElementById("page-title").textContent = titles[name] || name;
+
+  if (name === "leads")   loadLeads();
+  if (name === "config")  loadConfig();
+  if (name === "agents")  loadAgentRegistry();
+  if (name === "runs")    loadRunList();
+  if (name === "dashboard") { loadStats(); loadDomains(); loadDashRecentRuns(); }
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const res  = await fetch("/api/config/stats");
+  const data = await res.json();
+  document.getElementById("s-runs").textContent     = data.total_runs;
+  document.getElementById("s-leads").textContent    = data.total_leads;
+  document.getElementById("s-contacts").textContent = data.total_contacts;
+  document.getElementById("s-score").textContent    = data.avg_icp_score
+    ? (data.avg_icp_score * 100).toFixed(0) + "%"
+    : "—";
+  activeDomain = data.active_domain || "hr_saas";
+}
+
+// ── Domain switcher ────────────────────────────────────────────────────────
+async function loadDomains() {
+  const res     = await fetch("/api/config/domains");
+  const domains = await res.json();
+  const el      = document.getElementById("domain-cards");
+  const icons   = { hr_saas:"👥", staffing:"🏢", energy:"⚡" };
+  el.innerHTML  = domains.map(d => `
+    <div class="domain-card ${d.key === activeDomain ? 'active' : ''}"
+         id="domain-${d.key}" onclick="switchDomain('${d.key}','${d.label}')">
+      <div style="font-size:24px;margin-bottom:6px;">${icons[d.key] || "🏭"}</div>
+      <div style="font-size:13px;font-weight:600;color:#1e293b;">${d.label}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Click to activate</div>
+    </div>
+  `).join("");
+}
+
+async function switchDomain(key, label) {
+  await fetch(`/api/config/domain/${key}`, { method:"POST" });
+  activeDomain = key;
+  document.querySelectorAll(".domain-card").forEach(el => el.classList.remove("active"));
+  document.getElementById(`domain-${key}`)?.classList.add("active");
+  document.getElementById("domain-pill").textContent = label;
+  toast(`✓ Switched to ${label}`);
+  loadStats();
+}
+
+// ── Recent runs on dashboard ───────────────────────────────────────────────
+async function loadDashRecentRuns() {
+  const res  = await fetch("/api/runs/");
+  const runs = await res.json();
+  const el   = document.getElementById("dash-recent-runs");
+  if (!runs.length) {
+    el.innerHTML = `<div style="color:#94a3b8;font-size:13px;padding:20px 0;">No runs yet</div>`;
+    return;
+  }
+  const statusColors = {
+    done:"badge-green", failed:"badge-red", hitl_wait:"badge-amber",
+    running:"badge-indigo", pending:"badge-gray",
+  };
+  el.innerHTML = runs.slice(0,5).map(r => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;cursor:pointer;"
+         onclick="showPage('runs');setTimeout(()=>loadRun('${r.id}'),100)">
+      <span style="font-family:monospace;color:#64748b;font-size:12px;">${r.id.slice(0,8)}…</span>
+      <span class="badge ${statusColors[r.status]||'badge-gray'}">${r.status}</span>
+    </div>
+  `).join("");
+}
+
+// ── Run list ───────────────────────────────────────────────────────────────
+async function loadRunList() {
+  const res  = await fetch("/api/runs/");
+  const runs = await res.json();
+  const el   = document.getElementById("run-list");
+  if (!runs.length) {
+    el.innerHTML = `<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">No runs yet</div>`;
+    return;
+  }
+  const statusColors = {
+    done:"badge-green", failed:"badge-red", hitl_wait:"badge-amber",
+    running:"badge-indigo", pending:"badge-gray",
+  };
+  el.innerHTML = runs.map(r => `
+    <div class="card-sm p-3 cursor-pointer hover:border-indigo-200 transition-all"
+         style="margin-bottom:8px;" onclick="loadRun('${r.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-family:monospace;font-size:11px;color:#64748b;">${r.id.slice(0,8)}…</span>
+        <span class="badge ${statusColors[r.status]||'badge-gray'}" style="font-size:10px;">${r.status}</span>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;">${new Date(r.created_at).toLocaleString()}</div>
+    </div>
+  `).join("");
+}
+
+// ── Start run ──────────────────────────────────────────────────────────────
+async function startRun() {
+  showPage("runs");
+  const res        = await fetch("/api/runs/start", { method:"POST" });
+  const data       = await res.json();
+  currentRunId     = data.run_id;
+  agentSteps       = [];
+  hitlData         = null;
+  hitlDecisions    = {};
+  renderRunDetail("running", [], null);
+  connectSSE(currentRunId);
+  loadRunList();
+}
+
+function startRunAndNavigate() { startRun(); }
+
+// ── SSE ───────────────────────────────────────────────────────────────────
+function connectSSE(runId) {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`/api/runs/stream/${runId}`);
+  eventSource.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    if (ev.type === "agent") {
+      agentSteps.push({ key:ev.agent, message:ev.message, done:true });
+      renderRunDetail("running", agentSteps, null);
+    }
+    if (ev.type === "hitl") {
+      hitlData = ev.companies;
+      renderRunDetail("hitl_wait", agentSteps, hitlData);
+      eventSource.close();
+      loadStats();
+    }
+    if (ev.type === "done" || ev.type === "error") {
+      renderRunDetail(ev.type === "done" ? "done" : "error", agentSteps, null);
+      loadRunList(); loadStats();
+      eventSource.close();
+    }
+  };
+  eventSource.onerror = () => eventSource.close();
+}
+
+// ── Load existing run ──────────────────────────────────────────────────────
+async function loadRun(runId) {
+  currentRunId  = runId;
+  hitlDecisions = {};
+  const res = await fetch(`/api/runs/${runId}`);
+  const run = await res.json();
+  agentSteps = AGENTS.map(a => ({ key:a.key, message:"Completed", done:true }));
+
+  if (run.status === "hitl_wait") {
+    const companies = (run.results?.final_companies || []).map(c => ({
+      domain:    c.domain,
+      name:      c.name,
+      icp_score: c.icp_score,
+      trigger:   c.trigger,
+      headcount: c.headcount,
+      industry:  c.industry,
+      contacts:  c.decision_makers || [],
+    }));
+    hitlData = companies;
+    renderRunDetail("hitl_wait", agentSteps, companies);
+  } else {
+    renderRunDetail(run.status, agentSteps, null);
+    if (run.status === "done" && run.results?.summaries) {
+      renderSummaries(run.results.summaries);
+    }
+  }
+}
+
+// ── Render run detail ──────────────────────────────────────────────────────
+function renderRunDetail(status, steps, companies) {
+  const el = document.getElementById("run-detail");
+
+  // Pipeline visualization
+  let pipelineHTML = `<div class="card p-5 mb-4">
+    <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:16px;letter-spacing:.06em;">AGENT PIPELINE</div>
+    <div class="pipeline-wrap">`;
+
+  AGENTS.forEach((agent, i) => {
+    const step    = steps.find(s => s.key === agent.key);
+    const isDone  = !!step;
+    const isNext  = !isDone && steps.length === i;
+    const nodeClass = isDone ? "done" : isNext ? "active" : "";
+    const lblClass  = isDone ? "done" : isNext ? "active" : "";
+
+    pipelineHTML += `
+      <div class="p-node">
+        <div class="p-node-circle ${nodeClass}">${agent.icon}</div>
+        <div class="p-node-label ${lblClass}">${agent.label}</div>
+        ${step ? `<div style="font-size:10px;color:#94a3b8;max-width:80px;text-align:center;margin-top:2px;">${step.message}</div>` : ""}
+      </div>`;
+    if (i < AGENTS.length - 1) {
+      pipelineHTML += `<div class="p-connector ${isDone ? 'done' : ''}"></div>`;
+    }
+  });
+
+  pipelineHTML += `</div></div>`;
+
+  // Status banner
+  let bannerHTML = "";
+  if (status === "running") {
+    bannerHTML = `<div style="background:#eff2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#4f46e5;display:flex;align-items:center;gap:8px;">
+      <span style="animation:spin 1s linear infinite;display:inline-block;">⟳</span> Pipeline running — agents are working...
+    </div>`;
+  } else if (status === "hitl_wait") {
+    bannerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#d97706;display:flex;align-items:center;gap:8px;">
+      ⏸ Pipeline paused — Human approval required before generating recommendations
+    </div>`;
+  } else if (status === "done") {
+    bannerHTML = `<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#059669;display:flex;align-items:center;gap:8px;">
+      ✓ Pipeline complete — Leads saved. <span style="margin-left:8px;cursor:pointer;text-decoration:underline;" onclick="showPage('leads')">View in Saved Leads →</span>
+    </div>`;
+  } else if (status === "error" || status === "failed") {
+    bannerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#dc2626;">
+      ✗ Pipeline failed. Check server logs.
+    </div>`;
+  }
+
+  // HITL cards
+  let hitlHTML = "";
+  if (status === "hitl_wait" && companies && companies.length) {
+    hitlHTML = `<div class="card p-5">
+      <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;letter-spacing:.06em;">REVIEW & APPROVE LEADS</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Approve companies to generate outreach recommendations. Rejected companies are discarded.</div>
+      <div style="display:flex;flex-direction:column;gap:12px;" id="hitl-cards">`;
+
+    companies.forEach(c => {
+      const score = Math.round((c.icp_score || 0) * 100);
+      const scoreColor = score >= 80 ? "#059669" : score >= 60 ? "#d97706" : "#dc2626";
+      hitlHTML += `
+        <div class="hitl-card p-4" id="hitl-${c.domain}">
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:14px;font-weight:600;">${c.name}</span>
+                <span class="badge badge-gray">${c.industry}</span>
+                <span class="badge badge-gray">${c.headcount} employees</span>
+                <span class="badge badge-blue">${c.funding_stage || ""}</span>
+              </div>
+              <div style="font-size:12px;color:#64748b;margin-bottom:10px;">🔔 ${c.trigger}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <div class="score-bar" style="width:120px;">
+                  <div class="score-fill" style="width:${score}%;"></div>
+                </div>
+                <span style="font-size:12px;font-weight:600;color:${scoreColor};">${score}% ICP Match</span>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${(c.contacts||[]).map(ct => `
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;">
+                    <strong>${ct.name}</strong> · ${ct.title}
+                    <span class="badge ${ct.outreach_priority==='high'?'badge-green':'badge-blue'}" style="margin-left:4px;">${ct.outreach_priority||'medium'}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+              <button class="btn-success" onclick="setDecision('${c.domain}','approved')">✓ Approve</button>
+              <button class="btn-danger"  onclick="setDecision('${c.domain}','rejected')">✗ Reject</button>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    hitlHTML += `</div>
+      <button class="btn-primary" style="width:100%;margin-top:16px;padding:11px;"
+              onclick="submitHitl()">
+        Submit Decisions & Generate Outreach Recommendations
+      </button>
+    </div>`;
+  }
+
+  el.innerHTML = pipelineHTML + bannerHTML + hitlHTML;
+}
+
+// ── Render summaries inline ────────────────────────────────────────────────
+function renderSummaries(summaries) {
+  const el = document.getElementById("run-detail");
+  let html = el.innerHTML;
+  html += `<div style="margin-top:16px;">
+    <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:12px;letter-spacing:.06em;">OUTREACH RECOMMENDATIONS</div>
+    ${summaries.map(s => leadCardHTML(s)).join("")}
+  </div>`;
+  el.innerHTML = html;
+}
+
+// ── HITL decisions ─────────────────────────────────────────────────────────
+function setDecision(domain, decision) {
+  hitlDecisions[domain] = decision;
+  const card = document.getElementById(`hitl-${domain}`);
+  if (!card) return;
+  card.classList.remove("approved","rejected");
+  card.classList.add(decision);
+  toast(decision === "approved" ? `✓ ${domain} approved` : `✗ ${domain} rejected`);
+}
+
+async function submitHitl() {
+  if (!currentRunId) return;
+  if (!Object.keys(hitlDecisions).length) {
+    toast("Please approve or reject at least one company first.");
+    return;
+  }
+  const btn = document.querySelector("[onclick='submitHitl()']");
+  if (btn) { btn.textContent = "Processing…"; btn.disabled = true; }
+
+  const res  = await fetch(`/api/hitl/${currentRunId}/decide`, {
+    method:  "POST",
+    headers: { "Content-Type":"application/json" },
+    body:    JSON.stringify({ decisions: hitlDecisions }),
+  });
+  const data = await res.json();
+
+  if (data.status === "done") {
+    agentSteps = AGENTS.map(a => ({ key:a.key, message:"Completed", done:true }));
+    renderRunDetail("done", agentSteps, null);
+    if (data.summaries?.length) renderSummaries(data.summaries);
+    loadRunList(); loadStats();
+    toast("✓ Recommendations generated!");
+  }
+}
+
+// ── Lead card HTML ─────────────────────────────────────────────────────────
+function leadCardHTML(s) {
+  const score = Math.round((s.icp_score||0)*100);
+  const scoreColor = score>=80?"#059669":score>=60?"#d97706":"#dc2626";
+  return `
+    <div class="lead-card mb-4">
+      <div class="lead-card-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">${s.company_name}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">${s.domain} · ${s.industry} · ${s.headcount} employees · ${s.funding_stage}</div>
+          </div>
+          <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;text-align:center;">
+            <div style="font-size:20px;font-weight:700;color:#fff;">${score}%</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.75);">ICP MATCH</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 20px;">
+        <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:14px;">
+          🔔 <strong>Trigger:</strong> ${s.trigger}
+        </div>
+
+        <!-- Contacts -->
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px;letter-spacing:.06em;">DECISION MAKERS</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          ${(s.all_contacts||[]).map(ct => `
+            <div class="contact-chip" style="display:flex;align-items:center;gap:10px;">
+              <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#06b6d4);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0;">${ct.name?ct.name[0]:"?"}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;">${ct.name}</div>
+                <div style="font-size:11px;color:#64748b;">${ct.title}</div>
+              </div>
+              <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.6;">
+                ${ct.email    ? `<div>📧 ${ct.email}</div>` : ""}
+                ${ct.phone    ? `<div>📞 ${ct.phone}</div>` : ""}
+                ${ct.linkedin ? `<div><a href="https://${ct.linkedin}" target="_blank" style="color:#4f46e5;">LinkedIn ↗</a></div>` : ""}
+              </div>
+              <span class="badge ${ct.outreach_priority==='high'?'badge-green':ct.seniority==='c-suite'?'badge-green':'badge-blue'}" style="flex-shrink:0;">${ct.seniority||"director"}</span>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Outreach angle -->
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;letter-spacing:.06em;">OUTREACH ANGLE</div>
+        <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:13px;color:#374151;margin-bottom:14px;line-height:1.5;">${s.outreach_angle||""}</div>
+
+        <!-- Next actions -->
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px;letter-spacing:.06em;">NEXT ACTIONS</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${(s.next_actions||[]).map((a,i) => `
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#374151;">
+              <span style="background:#eff2ff;color:#4f46e5;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">${i+1}</span>
+              ${a}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Saved Leads ────────────────────────────────────────────────────────────
+async function loadLeads() {
+  const el  = document.getElementById("leads-list");
+  el.innerHTML = `<div style="color:#94a3b8;font-size:13px;text-align:center;padding:40px;">Loading...</div>`;
+  const res   = await fetch("/api/config/leads");
+  const leads = await res.json();
+  if (!leads.length) {
+    el.innerHTML = `<div style="text-align:center;padding:60px 0;">
+      <div style="font-size:40px;margin-bottom:12px;">🎯</div>
+      <div style="color:#94a3b8;font-size:14px;">No leads yet. Run a discovery pipeline and approve companies.</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = leads.map(c => leadCardHTML({
+    company_name:  c.name,
+    domain:        c.domain,
+    icp_score:     c.icp_score,
+    trigger:       c.trigger,
+    industry:      c.industry,
+    headcount:     c.headcount,
+    funding_stage: c.funding_stage,
+    all_contacts:  c.contacts,
+    outreach_angle: c.raw_data?.outreach_angle || "Contact the primary decision maker referencing the trigger event.",
+    next_actions:  c.raw_data?.next_actions || ["Send intro email","Connect on LinkedIn","Schedule discovery call"],
+  })).join("");
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  const res = await fetch("/api/config/");
+  const cfg = await res.json();
+  document.getElementById("cfg-industries").value = cfg.icp.industries.join(", ");
+  document.getElementById("cfg-min-hc").value      = cfg.icp.min_headcount;
+  document.getElementById("cfg-max-hc").value      = cfg.icp.max_headcount;
+  document.getElementById("cfg-stages").value      = cfg.icp.funding_stages.join(", ");
+  document.getElementById("cfg-threshold").value   = cfg.icp.score_threshold;
+  document.getElementById("threshold-label").textContent = cfg.icp.score_threshold;
+  document.getElementById("cfg-stack").value       = cfg.icp.tech_stack_signals.join(", ");
+  document.getElementById("cfg-keywords").value    = cfg.triggers.keywords.join(", ");
+}
+
+async function saveConfig() {
+  const split = s => s.split(",").map(x=>x.trim()).filter(Boolean);
+  const body  = {
+    icp: {
+      industries:         split(document.getElementById("cfg-industries").value),
+      min_headcount:      parseInt(document.getElementById("cfg-min-hc").value),
+      max_headcount:      parseInt(document.getElementById("cfg-max-hc").value),
+      funding_stages:     split(document.getElementById("cfg-stages").value),
+      score_threshold:    parseFloat(document.getElementById("cfg-threshold").value),
+      tech_stack_signals: split(document.getElementById("cfg-stack").value),
+      countries:          ["US","United States"],
+    },
+    personas: {
+      target_titles: ["CHRO","VP of HR","Head of People","Director of People Operations"],
+      min_seniority: "director",
+    },
+    triggers: {
+      keywords: split(document.getElementById("cfg-keywords").value),
+      sources:  ["news","jobs","linkedin"],
+    },
+    business_domain:   "B2B SaaS",
+    value_proposition: "Modern platform replacing legacy tools",
+  };
+  await fetch("/api/config/", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  toast("✓ Configuration saved");
+}
+
+// ── Agent registry ─────────────────────────────────────────────────────────
+async function loadAgentRegistry() {
+  const res    = await fetch("/api/agents/");
+  const agents = await res.json();
+  const icons  = {
+    trigger_monitor:"📡", icp_matcher:"🎯", enrichment:"🔍",
+    persona:"👤", contact_enrichment:"📧", summary:"📝",
+  };
+  const el = document.getElementById("agent-registry-list");
+  el.innerHTML = agents.map(a => `
+    <div class="card p-5">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:24px;">${icons[a.name]||"🤖"}</span>
+        <div>
+          <div style="font-size:14px;font-weight:600;">${a.class}</div>
+          <div style="font-family:monospace;font-size:11px;color:#94a3b8;">${a.name}</div>
+        </div>
+        <span class="badge badge-green" style="margin-left:auto;">Registered</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;">${a.doc||"No description."}</div>
+      <div style="margin-top:10px;font-size:11px;color:#94a3b8;background:#f8fafc;border-radius:6px;padding:6px 10px;font-family:monospace;">@register class ${a.class}(AgentNode)</div>
+    </div>
+  `).join("");
+}
+// ── Email outreach ─────────────────────────────────────────────────────────
+async function sendSingleEmail(name, email, company, trigger, techStack, angle, btn) {
+  btn.textContent = "Sending…";
+  btn.disabled = true;
+
+  const res  = await fetch("/api/email/send-single", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contact_name:   name,
+      contact_email:  email,
+      company_name:   company,
+      trigger:        trigger,
+      tech_stack:     techStack,
+      outreach_angle: angle,
+    }),
+  });
+  const data = await res.json();
+
+  if (data.result?.status === "sent") {
+    btn.textContent = "✓ Sent";
+    btn.style.background = "#10b981";
+    toast(`✓ Email sent to ${email}`);
+  } else if (data.result?.status === "mock_sent") {
+    btn.textContent = "✓ Logged";
+    btn.style.background = "#d97706";
+    toast(`📝 Mock sent — configure Gmail to send real emails`);
+  } else {
+    btn.textContent = "✗ Failed";
+    btn.style.background = "#ef4444";
+    toast(`✗ Failed: ${data.result?.error || "unknown error"}`);
+  }
+}
+
+async function sendAllEmails(summary, btn) {
+  btn.textContent = "Sending to all contacts…";
+  btn.disabled = true;
+
+  const res  = await fetch("/api/email/send-bulk", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ summaries: [summary] }),
+  });
+  const data = await res.json();
+  const results = data.results || [];
+  const sent   = results.filter(r => r.status === "sent" || r.status === "mock_sent").length;
+  const failed = results.filter(r => r.status === "failed").length;
+
+  btn.textContent = `✓ ${sent} sent${failed ? `, ${failed} failed` : ""}`;
+  btn.style.background = failed > 0 ? "#d97706" : "#10b981";
+  btn.disabled = false;
+
+  const statusEl = document.getElementById(`email-status-${summary.domain?.replace('.','_')}`);
+  if (statusEl) {
+    statusEl.innerHTML = results.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+        <span style="color:#64748b;">${r.contact_name} — ${r.contact_email}</span>
+        <span class="badge ${r.status==='sent'?'badge-green':r.status==='mock_sent'?'badge-amber':'badge-red'}">${r.status}</span>
+      </div>
+    `).join("");
+  }
+  toast(`✉ ${sent} email${sent!==1?'s':''} sent`);
+}
+// ── Init ───────────────────────────────────────────────────────────────────
+showPage("dashboard");
+</script>
+</body>
+</html>
